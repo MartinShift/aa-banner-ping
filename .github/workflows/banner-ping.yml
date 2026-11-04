@@ -1,0 +1,30 @@
+name: Anime Adventures banner ping
+
+on:
+  schedule:
+    - cron: "1 * * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Send Discord notification
+        env:
+          WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          USER_ID: ${{ secrets.DISCORD_USER_ID }}
+        run: |
+          if [ -z "$WEBHOOK_URL" ]; then
+            echo "::error::DISCORD_WEBHOOK_URL secret is not set"
+            exit 1
+          fi
+          now=$(date -u +%s)
+          next=$(( (now / 3600 + 1) * 3600 ))
+          mention=""
+          if [ -n "$USER_ID" ]; then mention="<@${USER_ID}> "; fi
+          payload=$(jq -n \
+            --arg content "${mention}🎰 **New Anime Adventures gem banner is live!** Hop in and check it. Next rotation <t:${next}:R>." \
+            --arg uid "$USER_ID" \
+            '{content: $content, allowed_mentions: {users: (if $uid == "" then [] else [$uid] end)}}')
+          curl -fsS -X POST -H "Content-Type: application/json" -d "$payload" "$WEBHOOK_URL"
